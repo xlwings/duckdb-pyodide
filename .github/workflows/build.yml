@@ -1,9 +1,7 @@
-name: Build DuckDB Pyodide Wheel
+name: Build
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build:

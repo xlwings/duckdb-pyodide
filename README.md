@@ -2,15 +2,27 @@
 
 A GitHub Actions workflow that builds DuckDB WASM wheels for [Pyodide](https://pyodide.org/) since DuckDB dropped their pyodide build (see [duckdb/duckdb-pyodide#7](https://github.com/duckdb/duckdb-pyodide/issues/7)).
 
-## Triggering a build
+## Adding a new version
 
-Builds run automatically on every push to `main`, or can be triggered manually via **Actions → Build DuckDB Pyodide Wheel → Run workflow**.
+Edit the `matrix.include` list in [`.github/workflows/build.yml`](.github/workflows/build.yml) — only exact version tags from [duckdb/duckdb-python](https://github.com/duckdb/duckdb-python) are supported (e.g. `v1.4.4`), not branch names. Each pyodide version requires a specific Python version; check the [pyodide changelog](https://pyodide.org/en/stable/project/changelog.html) when adding new entries.
 
-The matrix of duckdb/pyodide version combinations is hardcoded in [`.github/workflows/build.yml`](.github/workflows/build.yml) under `jobs.build.strategy.matrix.include`. Edit that list to add or change versions — only exact version tags from [duckdb/duckdb-python](https://github.com/duckdb/duckdb-python) are supported (e.g. `v1.4.4`), not branch names.
+```yaml
+matrix:
+  include:
+    - duckdb_version: 'v1.4.4'
+      pyodide_version: '0.29.3'
+      python_version: '3.13'
+```
 
-- Each combination produces its own artifact, uploaded to the workflow run and retained for 90 days.
+## CI vs Release
+
+Two workflows are defined:
+
+- **[CI](.github/workflows/ci.yml)** — runs on every push to `main` (except README-only changes). Builds all matrix combinations and uploads wheels as artifacts. Does not publish a release.
+- **[Release](.github/workflows/release.yml)** — triggered manually via **Actions → Release → Run workflow**. Builds and publishes each combination as a GitHub release tagged `duckdb-v1.4.4-pyodide-0.29.3`. Note that `release.yml` has its own copy of the matrix, which allows you to release only specific build versions.
+
+- The build takes ~20 minutes per combination since it compiles DuckDB from source with Emscripten.
 - Extension downloading does not work in the Pyodide runtime. Built-in extensions (json, parquet, icu, core_functions) are bundled.
-- The build takes ~20 minutes because it compiles DuckDB from source with Emscripten.
 
 ## How it works
 
