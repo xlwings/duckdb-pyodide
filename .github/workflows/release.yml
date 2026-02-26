@@ -4,11 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    uses: ./.github/workflows/build.yml
-
   release:
-    needs: build
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -18,11 +14,35 @@ jobs:
             pyodide_version: '0.29.3'
 
     steps:
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: duckdb-${{ matrix.duckdb_version }}-pyodide-${{ matrix.pyodide_version }}
-          path: dist
+      - name: Checkout this repo
+        uses: actions/checkout@v6
+
+      - name: Download wheel artifact from latest CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARTIFACT_NAME="duckdb-${{ matrix.duckdb_version }}-pyodide-${{ matrix.pyodide_version }}"
+
+          # Find the latest successful CI run on main
+          RUN_ID=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow ci.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful CI run found on main"
+            exit 1
+          fi
+
+          echo "Downloading artifact '${ARTIFACT_NAME}' from CI run ${RUN_ID}"
+          gh run download "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --name "$ARTIFACT_NAME" \
+            --dir dist
 
       - name: Create GitHub release
         env:
@@ -30,7 +50,7 @@ jobs:
         run: |
           TAG="duckdb-${{ matrix.duckdb_version }}-pyodide-${{ matrix.pyodide_version }}"
 
-          python3 ${{ github.workspace }}/scripts/make_release_notes.py \
+          python3 scripts/make_release_notes.py \
             "${{ matrix.duckdb_version }}" "${{ matrix.pyodide_version }}" \
             > release-notes.md
 
