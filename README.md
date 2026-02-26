@@ -1,6 +1,6 @@
 # duckdb-pyodide
 
-A GitHub Actions workflow that builds DuckDB WASM wheels for [Pyodide](https://pyodide.org/) since DuckDB dropped their pyodide build (see [duckdb/duckdb-pyodide#7](https://github.com/duckdb/duckdb-pyodide/issues/7)).
+A GitHub Actions workflow that builds DuckDB WASM wheels for [Pyodide](https://pyodide.org/) since DuckDB dropped their pyodide build (see [duckdb/duckdb-pyodide#7](https://github.com/duckdb/duckdb-pyodide/issues/7)). Original support for Pyodide was added in https://github.com/duckdb/duckdb/pull/11531.
 
 ## Adding a new version
 

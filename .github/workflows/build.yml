@@ -72,7 +72,12 @@ jobs:
       - name: Build WASM wheel
         working-directory: duckdb-python
         env:
+          # DUCKDB_CUSTOM_PLATFORM (env) only affects the wheel filename tag.
+          # DUCKDB_EXPLICIT_PLATFORM (CMake) bakes the platform string into the binary,
+          # which is what PRAGMA platform returns at runtime. Without this,
+          # PRAGMA platform returns the host platform (e.g. linux_i686_musl).
           DUCKDB_CUSTOM_PLATFORM: wasm_eh_pyodide
+          CMAKE_ARGS: "-DDUCKDB_EXPLICIT_PLATFORM=wasm_eh_pyodide"
           CFLAGS: "-fwasm-exceptions"
           LDFLAGS: "-fwasm-exceptions"
           DEFAULT_CROSS_BUILD_ENV_URL: ${{ steps.vars.outputs.xbuildenv_url }}
