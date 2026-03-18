@@ -7,7 +7,7 @@
 
 import { chromium } from 'playwright';
 import { createServer } from 'http';
-import { readFile } from 'fs/promises';
+import { readFile, readdir } from 'fs/promises';
 import { extname, resolve, basename, dirname } from 'path';
 
 const args = process.argv.slice(2).filter(a => a !== '--strict');
@@ -50,9 +50,17 @@ const server = createServer(async (req, res) => {
     const data = await readFile(filePath);
     res.writeHead(200, { 'Content-Type': MIME[extname(filePath)] ?? 'application/octet-stream' });
     res.end(data);
-  } catch {
-    res.writeHead(404);
-    res.end('Not found: ' + filePath);
+  } catch (e) {
+    // If it's a directory, return a simple listing (needed for wheel discovery)
+    if (e.code === 'EISDIR') {
+      const entries = await readdir(filePath);
+      const html = entries.map(f => `<a href="${f}">${f}</a>`).join('\n');
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(html);
+    } else {
+      res.writeHead(404);
+      res.end('Not found: ' + filePath);
+    }
   }
 });
 
