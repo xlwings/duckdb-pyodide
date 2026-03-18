@@ -56,8 +56,7 @@ Tests that are excluded from the run (incompatible with Pyodide):
 | Threading (`test_6584`, `test_parallel`) | `can't start new thread` — no threading in Pyodide |
 | ADBC (`test_adbc`) | ADBC driver not available in wasm |
 | Spark (`test_spark`) | PySpark not available in Pyodide |
-| SQLite scanner (`test_sqlite_scanner`) | Native SQLite extension not loadable in wasm |
-| fsspec / httpfs (`test_fsspec`, `test_read_csv_httpfs`) | No filesystem/network access in Pyodide |
+| fsspec / httpfs (`test_fsspec`, `test_read_csv_httpfs`) | `fsspec` not available in Pyodide; httpfs extension not bundled |
 | Subprocess (`test_startup`, `test_connection_interruption`) | `emscripten does not support processes` |
 | PyTorch / TensorFlow (`test_torch`, `test_tf`) | Not available in Pyodide |
 | psutil (`test_query_profiler`) | Not available in Pyodide |
