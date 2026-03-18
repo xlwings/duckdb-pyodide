@@ -28,8 +28,9 @@ from spark_namespace.sql.types import (
     StringType,
     StructField,
     StructType,
+    TimeNSType,
     TimeNTZType,
-    TimestampMilisecondNTZType,
+    TimestampMillisecondNTZType,
     TimestampNanosecondNTZType,
     TimestampNTZType,
     TimestampSecondNTZType,
@@ -85,7 +86,7 @@ class TestTypes:
                 StructField("timestamp", TimestampNTZType(), True),
                 StructField("timestamp_s", TimestampSecondNTZType(), True),
                 StructField("timestamp_ms", TimestampNanosecondNTZType(), True),
-                StructField("timestamp_ns", TimestampMilisecondNTZType(), True),
+                StructField("timestamp_ns", TimestampMillisecondNTZType(), True),
                 StructField("time_tz", TimeType(), True),
                 StructField("timestamp_tz", TimestampType(), True),
                 StructField("float", FloatType(), True),
@@ -129,5 +130,6 @@ class TestTypes:
                     True,
                 ),
                 StructField("map", MapType(StringType(), StringType(), True), True),
+                StructField("time_ns", TimeNSType(), True),
             ]
         )

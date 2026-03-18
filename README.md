@@ -9,7 +9,7 @@ Edit the `matrix.include` list in [`.github/workflows/build.yml`](.github/workfl
 ```yaml
 matrix:
   include:
-    - duckdb_version: 'v1.4.4'
+    - duckdb_version: 'v1.5.0'
       pyodide_version: '0.29.3'
       python_version: '3.13'
 ```
@@ -47,13 +47,13 @@ Now open http://localhost:8000/test-official.html.
 
 `wasm-dist/` must contain the built wheel.
 
-`test-official.html`: **2418 passed, 269 skipped, 4 xfailed, 3 xpassed**.
+`test-official.html`: results pending v1.5.0 build.
 
 Tests that are excluded from the run (incompatible with Pyodide):
 
 | Category | Reason |
 |----------|--------|
-| Threading (`test_6584`, `test_parallel`) | `can't start new thread` — no threading in Pyodide |
+| Threading (`test_6584`, `test_parallel`, `test_alex_multithread`, `test_multithread`, `test_query_progress`) | `can't start new thread` — no threading in Pyodide |
 | ADBC (`test_adbc`) | ADBC driver not available in wasm |
 | Spark (`test_spark`) | PySpark not available in Pyodide |
 | fsspec / httpfs (`test_fsspec`, `test_read_csv_httpfs`) | `fsspec` not available in Pyodide; httpfs extension not bundled |
