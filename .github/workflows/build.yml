@@ -1,7 +1,10 @@
 name: Build
 
 on:
-  workflow_call:
+  push:
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -90,10 +93,35 @@ jobs:
       - name: Show wheel info
         run: ls -lah duckdb-python/dist/*.whl
 
+      - name: Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: Run smoke tests (required to pass)
+        run: node test-runner.mjs --strict test-smoke.html duckdb-python/dist
+
+      - name: Run official test suite (informational only)
+        run: node test-runner.mjs test-official.html duckdb-python/dist
+
       - name: Upload wheel artifact
+        if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v6
         with:
           name: duckdb-${{ matrix.duckdb_version }}-pyodide-${{ matrix.pyodide_version }}
           if-no-files-found: error
           path: duckdb-python/dist/*.whl
           retention-days: 90
+
+      - name: Create GitHub release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="duckdb-${{ matrix.duckdb_version }}-pyodide-${{ matrix.pyodide_version }}"
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "" \
+            duckdb-python/dist/*.whl

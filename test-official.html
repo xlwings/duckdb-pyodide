@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DuckDB Official Test Suite — Pyodide 0.29.3</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; font-size: 13px; }
+    h1 { color: #569cd6; margin-bottom: 4px; }
+    p.sub { color: #9cdcfe; margin-top: 0; margin-bottom: 16px; }
+    #status { color: #9cdcfe; margin-bottom: 8px; }
+    #output { white-space: pre; background: #252526; padding: 16px; border-radius: 4px; min-height: 200px; overflow-x: auto; max-height: 70vh; overflow-y: auto; }
+    #summary { margin-top: 12px; font-size: 15px; font-weight: bold; }
+    .ok   { color: #4ec9b0; }
+    .err  { color: #f48771; }
+    .info { color: #9cdcfe; }
+    .warn { color: #dcdcaa; }
+    .pass { color: #4ec9b0; }
+    .fail { color: #f48771; }
+    .head { color: #c586c0; }
+  </style>
+</head>
+<body>
+  <h1>DuckDB — Official Test Suite in Pyodide 0.29.3</h1>
+  <p class="sub">Runs duckdb-python <code>tests/fast/</code> unit tests via pytest inside Pyodide. Full output is in the browser <strong>Console</strong> (F12).</p>
+  <div id="status">Initialising…</div>
+  <div id="current-test" style="color:#858585; font-size:11px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+  <div id="output"></div>
+  <div id="summary"></div>
+
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    const out = document.getElementById('output');
+    const summaryEl = document.getElementById('summary');
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function log(msg, cls) {
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = msg + '\n';
+      out.appendChild(span);
+      out.scrollTop = out.scrollHeight;
+    }
+
+    // Directories to skip entirely (unavailable deps or incompatible with wasm)
+    const SKIP_DIRS = new Set(['adbc', 'spark', 'sqlite']);
+
+    async function fetchLocal(path) {
+      const r = await fetch(path);
+      if (!r.ok) throw new Error(`HTTP ${r.status} ${path}`);
+      return r.text();
+    }
+
+    // Test files from duckdb-python/tests/fast/ that are compatible with Pyodide.
+    // Excluded: adbc/*, spark/*, sqlite/*, threading tests, filesystem tests,
+    // fsspec, pytorch, tensorflow, psutil-dependent, Windows-only, versioning.
+    const TEST_FILES = [
+      // api/
+      "api/test_3324.py",
+      "api/test_3654.py",
+      "api/test_3728.py",
+      "api/test_6315.py",
+      "api/test_attribute_getter.py",
+      "api/test_config.py",
+      "api/test_connection_close.py",
+      "api/test_cursor.py",
+      "api/test_dbapi00.py",
+      "api/test_dbapi01.py",
+      "api/test_dbapi04.py",
+      "api/test_dbapi05.py",
+      "api/test_dbapi07.py",
+      "api/test_dbapi08.py",
+      "api/test_dbapi09.py",
+      "api/test_dbapi10.py",
+      "api/test_dbapi11.py",
+      "api/test_dbapi12.py",
+      "api/test_dbapi13.py",
+      "api/test_dbapi_fetch.py",
+      "api/test_duckdb_connection.py",
+      "api/test_duckdb_execute.py",
+      "api/test_duckdb_query.py",
+      "api/test_explain.py",
+      "api/test_insert_into.py",
+      "api/test_join.py",
+      "api/test_native_tz.py",
+      "api/test_read_csv.py",
+      "api/test_relation_to_view.py",
+      "api/test_streaming_result.py",
+      "api/test_to_csv.py",
+      "api/test_to_parquet.py",
+      "api/test_with_propagating_exceptions.py",
+      // arrow/
+      "arrow/test_10795.py",
+      "arrow/test_12384.py",
+      "arrow/test_14344.py",
+      "arrow/test_2426.py",
+      "arrow/test_5547.py",
+      "arrow/test_6796.py",
+      "arrow/test_7652.py",
+      "arrow/test_7699.py",
+      "arrow/test_8522.py",
+      "arrow/test_9443.py",
+      "arrow/test_arrow_batch_index.py",
+      "arrow/test_arrow_binary_view.py",
+      "arrow/test_arrow_case_sensitive.py",
+      "arrow/test_arrow_decimal256.py",
+      "arrow/test_arrow_decimal_32_64.py",
+      "arrow/test_arrow_extensions.py",
+      "arrow/test_arrow_fetch.py",
+      "arrow/test_arrow_fetch_recordbatch.py",
+      "arrow/test_arrow_fixed_binary.py",
+      "arrow/test_arrow_ipc.py",
+      "arrow/test_arrow_list.py",
+      "arrow/test_arrow_offsets.py",
+      "arrow/test_arrow_pycapsule.py",
+      "arrow/test_arrow_recordbatchreader.py",
+      "arrow/test_arrow_replacement_scan.py",
+      "arrow/test_arrow_run_end_encoding.py",
+      "arrow/test_arrow_scanner.py",
+      "arrow/test_arrow_string_view.py",
+      "arrow/test_arrow_types.py",
+      "arrow/test_arrow_union.py",
+      "arrow/test_arrow_version_format.py",
+      "arrow/test_binary_type.py",
+      "arrow/test_buffer_size_option.py",
+      "arrow/test_dataset.py",
+      "arrow/test_date.py",
+      "arrow/test_dictionary_arrow.py",
+      "arrow/test_filter_pushdown.py",
+      "arrow/test_integration.py",
+      "arrow/test_interval.py",
+      "arrow/test_large_offsets.py",
+      "arrow/test_large_string.py",
+      "arrow/test_multiple_reads.py",
+      "arrow/test_nested_arrow.py",
+      "arrow/test_polars.py",
+      "arrow/test_progress.py",
+      "arrow/test_projection_pushdown.py",
+      "arrow/test_time.py",
+      "arrow/test_timestamp_timezone.py",
+      "arrow/test_timestamps.py",
+      "arrow/test_tpch.py",
+      "arrow/test_unregister.py",
+      "arrow/test_view.py",
+      // numpy/
+      "numpy/test_numpy_new_path.py",
+      // pandas/
+      "pandas/test_2304.py",
+      "pandas/test_append_df.py",
+      "pandas/test_bug2281.py",
+      "pandas/test_bug5922.py",
+      "pandas/test_column_order.py",
+      "pandas/test_copy_on_write.py",
+      "pandas/test_create_table_from_pandas.py",
+      "pandas/test_date_as_datetime.py",
+      "pandas/test_datetime_time.py",
+      "pandas/test_datetime_timestamp.py",
+      "pandas/test_df_analyze.py",
+      "pandas/test_df_object_resolution.py",
+      "pandas/test_df_recursive_nested.py",
+      "pandas/test_fetch_df_chunk.py",
+      "pandas/test_fetch_nested.py",
+      "pandas/test_implicit_pandas_scan.py",
+      "pandas/test_import_cache.py",
+      "pandas/test_issue_1767.py",
+      "pandas/test_limit.py",
+      "pandas/test_new_string_type.py",
+      "pandas/test_pandas_arrow.py",
+      "pandas/test_pandas_category.py",
+      "pandas/test_pandas_df_none.py",
+      "pandas/test_pandas_enum.py",
+      "pandas/test_pandas_limit.py",
+      "pandas/test_pandas_na.py",
+      "pandas/test_pandas_object.py",
+      "pandas/test_pandas_string.py",
+      "pandas/test_pandas_timestamp.py",
+      "pandas/test_pandas_types.py",
+      "pandas/test_pandas_unregister.py",
+      "pandas/test_pandas_update.py",
+      "pandas/test_parallel_pandas_scan.py",
+      "pandas/test_partitioned_pandas_scan.py",
+      "pandas/test_progress_bar.py",
+      "pandas/test_pyarrow_projection_pushdown.py",
+      "pandas/test_same_name.py",
+      "pandas/test_stride.py",
+      "pandas/test_timedelta.py",
+      "pandas/test_timestamp.py",
+      // relational_api/
+      "relational_api/test_groupings.py",
+      "relational_api/test_joins.py",
+      "relational_api/test_pivot.py",
+      "relational_api/test_rapi_aggregations.py",
+      "relational_api/test_rapi_close.py",
+      "relational_api/test_rapi_description.py",
+      "relational_api/test_rapi_functions.py",
+      "relational_api/test_rapi_query.py",
+      "relational_api/test_rapi_windows.py",
+      "relational_api/test_table_function.py",
+      // types/
+      "types/test_blob.py",
+      "types/test_boolean.py",
+      "types/test_datetime_date.py",
+      "types/test_datetime_datetime.py",
+      "types/test_decimal.py",
+      "types/test_hugeint.py",
+      "types/test_nan.py",
+      "types/test_nested.py",
+      "types/test_null.py",
+      "types/test_numeric.py",
+      "types/test_numpy.py",
+      "types/test_object_int.py",
+      "types/test_time_tz.py",
+      "types/test_unsigned.py",
+      // udf/
+      "udf/test_null_filtering.py",
+      "udf/test_remove_function.py",
+      "udf/test_scalar.py",
+      "udf/test_scalar_arrow.py",
+      "udf/test_scalar_native.py",
+      "udf/test_transactionality.py",
+      // top-level
+      "test_all_types.py",
+      "test_ambiguous_prepare.py",
+      "test_case_alias.py",
+      "test_context_manager.py",
+      "test_duckdb_api.py",
+      "test_expression.py",
+      "test_get_table_names.py",
+      "test_import_export.py",
+      "test_insert.py",
+      "test_map.py",
+      "test_metatransaction.py",
+      "test_module.py",
+      "test_multi_statement.py",
+      "test_non_default_conn.py",
+      "test_parameter_list.py",
+      "test_parquet.py",
+      "test_relation.py",
+      "test_replacement_scan.py",
+      "test_result.py",
+      "test_runtime_error.py",
+      "test_sql_expression.py",
+      "test_string_annotation.py",
+      "test_transaction.py",
+      "test_type.py",
+      "test_type_explicit.py",
+      "test_unicode.py",
+      "test_union.py",
+      "test_value.py",
+      "test_version.py",
+    ];
+
+    async function main() {
+      out.textContent = '';
+
+      // ── 1. Load Pyodide ──────────────────────────────────────────────────
+      setStatus('Loading Pyodide 0.29.3…');
+      const pyodide = await loadPyodide();
+      log('Pyodide 0.29.3 ready.', 'ok');
+
+      // ── 2. Discover and install duckdb wheel ─────────────────────────────
+      setStatus('Installing duckdb wheel…');
+      await pyodide.loadPackage('micropip');
+      const micropip = pyodide.pyimport('micropip');
+
+      // Discover wheel filename dynamically from directory listing
+      const dirResp = await fetch('./wasm-dist/');
+      let wheelFile;
+      if (dirResp.ok) {
+        const text = await dirResp.text();
+        const match = text.match(/duckdb-[^\s"'<>]+\.whl/);
+        if (match) wheelFile = match[0];
+      }
+      if (!wheelFile) {
+        log('ERROR: Could not find .whl in /wasm-dist/', 'err');
+        setStatus('Error: no wheel found');
+        return;
+      }
+
+      const wheelUrl = new URL('./wasm-dist/' + wheelFile, location.href).href;
+      await micropip.install(wheelUrl);
+      log('duckdb wheel installed.', 'ok');
+
+      // ── 3. Install test dependencies ─────────────────────────────────────
+      setStatus('Installing pytest, numpy, pandas, pyarrow, packaging…');
+      log('Installing test dependencies…', 'info');
+      await pyodide.loadPackage(['pytest', 'numpy', 'pandas', 'pyarrow', 'packaging']);
+      log('Test dependencies installed.', 'ok');
+
+      // ── 4. Set up virtual filesystem ─────────────────────────────────────
+      // Collect all unique directories needed.
+      // No __init__.py — pytest uses rootdir-based discovery; adding
+      // __init__.py turns dirs into packages and breaks conftest resolution.
+      const dirs = new Set(['/tests']);
+      for (const f of TEST_FILES) {
+        const parts = f.split('/');
+        for (let i = 1; i < parts.length; i++) {
+          dirs.add('/tests/' + parts.slice(0, i).join('/'));
+        }
+      }
+      pyodide.runPython(`
+import os, sys
+for d in ${JSON.stringify([...dirs].sort())}:
+    os.makedirs(d, exist_ok=True)
+sys.path.insert(0, '/tests')
+`);
+
+      // Write conftest.py
+      const conftest = await fetchLocal('./tests/conftest.py');
+      pyodide.FS.writeFile('/tests/conftest.py', conftest, { encoding: 'utf8' });
+
+      // ── 5. Load test files from local server ─────────────────────────────
+      setStatus(`Loading ${TEST_FILES.length} test files…`);
+      log(`\nLoading ${TEST_FILES.length} test files…`, 'head');
+      let loaded = 0, skipped = 0;
+      for (const f of TEST_FILES) {
+        try {
+          const src = await fetchLocal('./tests/fast/' + f);
+          pyodide.FS.writeFile('/tests/' + f, src, { encoding: 'utf8' });
+          loaded++;
+        } catch (e) {
+          log(`  SKIP ${f}: ${e.message}`, 'warn');
+          skipped++;
+        }
+      }
+      log(`${loaded} loaded, ${skipped} skipped.\n`, 'info');
+
+      // ── 5b. Copy data files into Pyodide FS ────────────────────────────
+      // Tests reference data via relative paths like ../data/foo.csv
+      pyodide.runPython(`
+import os
+os.makedirs('/tests/data', exist_ok=True)
+os.makedirs('/tests/arrow/data', exist_ok=True)
+`);
+
+      const DATA_FILES = [
+        // tests/fast/data/ → /tests/data/
+        { src: './tests/fast/data/binary_string.parquet', dst: '/tests/data/binary_string.parquet' },
+        { src: './tests/fast/data/category.csv', dst: '/tests/data/category.csv' },
+        { src: './tests/fast/data/datetime.csv', dst: '/tests/data/datetime.csv' },
+        { src: './tests/fast/data/example.json', dst: '/tests/data/example.json' },
+        { src: './tests/fast/data/integers.csv', dst: '/tests/data/integers.csv' },
+        { src: './tests/fast/data/nullpadding.csv', dst: '/tests/data/nullpadding.csv' },
+        { src: './tests/fast/data/problematic.csv', dst: '/tests/data/problematic.csv' },
+        { src: './tests/fast/data/quote_escape.csv', dst: '/tests/data/quote_escape.csv' },
+        { src: './tests/fast/data/stress_test.csv', dst: '/tests/data/stress_test.csv' },
+        { src: './tests/fast/data/tz.parquet', dst: '/tests/data/tz.parquet' },
+        { src: './tests/fast/data/unquote_without_delimiter.csv', dst: '/tests/data/unquote_without_delimiter.csv' },
+        // tests/fast/arrow/data/ → /tests/arrow/data/
+        { src: './tests/fast/arrow/data/arrow_table', dst: '/tests/arrow/data/arrow_table' },
+        { src: './tests/fast/arrow/data/unsigned.parquet', dst: '/tests/arrow/data/unsigned.parquet' },
+        { src: './tests/fast/arrow/data/userdata1.parquet', dst: '/tests/arrow/data/userdata1.parquet' },
+      ];
+
+      for (const { src, dst } of DATA_FILES) {
+        try {
+          const resp = await fetch(src);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const buf = new Uint8Array(await resp.arrayBuffer());
+          pyodide.FS.writeFile(dst, buf);
+        } catch (e) {
+          log(`  SKIP data ${src}: ${e.message}`, 'warn');
+        }
+      }
+
+      // ── 6. Run pytest ─────────────────────────────────────────────────────
+      setStatus('Running pytest… (this may take several minutes)');
+      log('Running pytest on /tests/ …', 'head');
+
+      const result = await pyodide.runPythonAsync(`
+import sys, pytest
+from js import document
+
+class CapturingPlugin:
+    def __init__(self):
+        self.passed = self.failed = self.skipped = self.errors = 0
+        self.failures = []
+        self.collection_errors = []
+
+    def pytest_runtest_logstart(self, nodeid, location):
+        el = document.getElementById("current-test")
+        if el:
+            el.textContent = nodeid
+
+    def pytest_runtest_logreport(self, report):
+        if report.when == 'call':
+            if report.passed:    self.passed  += 1
+            elif report.failed:  self.failed  += 1; self.failures.append(f"FAIL {report.nodeid}\\n{str(report.longrepr)[:800]}")
+            elif report.skipped: self.skipped += 1
+        elif report.when == 'setup' and report.skipped:
+            self.skipped += 1
+        elif report.when == 'setup' and report.failed:
+            self.failed += 1
+            self.failures.append(f"FAIL (setup) {report.nodeid}\\n{str(report.longrepr)[:800]}")
+
+    def pytest_collectreport(self, report):
+        if report.failed:
+            self.collection_errors.append(f"COLLECT ERROR {report.nodeid}\\n{str(report.longrepr)[:800]}")
+
+    def pytest_internalerror(self, excrepr):
+        self.errors += 1
+
+plugin = CapturingPlugin()
+
+exit_code = pytest.main(
+    [
+        '/tests',
+        '--rootdir=/tests',
+        '--tb=line',
+        '--no-header',
+        '-q',
+        '--continue-on-collection-errors',
+        '-p', 'no:cacheprovider',
+        '-p', 'no:warnings',
+    ],
+    plugins=[plugin],
+)
+
+parts = [f"{plugin.passed} passed"]
+if plugin.failed:  parts.append(f"{plugin.failed} failed")
+if plugin.skipped: parts.append(f"{plugin.skipped} skipped")
+if plugin.errors:  parts.append(f"{plugin.errors} errors")
+summary = ", ".join(parts)
+all_issues = plugin.collection_errors[:10] + plugin.failures[:50]
+failure_text = "\\n\\n".join(all_issues)
+collection_summary = f"{len(plugin.collection_errors)} collection error(s)" if plugin.collection_errors else ""
+f"{exit_code}|||{summary}|||{failure_text}|||{collection_summary}"
+`);
+
+      // ── 7. Display results ────────────────────────────────────────────────
+      const [exitCodeStr, summary, failureText, collectionSummary] = result.split('|||');
+      const exitCode = parseInt(exitCodeStr);
+
+      log('\n── Results ─────────────────────────────────────────', 'head');
+      if (collectionSummary && collectionSummary.trim()) {
+        log('\n' + collectionSummary + ' (shown below):', 'warn');
+      }
+      if (failureText && failureText.trim()) {
+        log('\nCollection errors and failures:', 'err');
+        for (const block of failureText.split('\n\n')) {
+          if (block.trim()) log(block, 'err');
+        }
+      }
+      log('\n' + summary, exitCode === 0 ? 'pass' : 'fail');
+
+      summaryEl.innerHTML = exitCode === 0
+        ? `<span class="pass">${summary}</span>`
+        : `<span class="fail">${summary}</span>`;
+      setStatus(exitCode === 0 ? 'All tests passed.' : 'Done.');
+    }
+
+    main().catch(e => {
+      setStatus('Error: ' + e.message);
+      log('\nFATAL ERROR: ' + e, 'err');
+      console.error(e);
+    });
+  </script>
+</body>
+</html>
