@@ -14,21 +14,65 @@ matrix:
       python_version: '3.13'
 ```
 
-## CI vs Release
+## Build & Release
 
-Two workflows are defined:
+A single [build workflow](.github/workflows/build.yml) runs on every push (except README-only changes) and on manual dispatch:
 
-- **[CI](.github/workflows/ci.yml)** — runs on every push to `main` (except README-only changes). Builds all matrix combinations and uploads wheels as artifacts. Does not publish a release.
-- **[Release](.github/workflows/release.yml)** — triggered manually via **Actions → Release → Run workflow**. Downloads wheels from the latest successful CI run on `main` and publishes them as GitHub releases tagged `duckdb-vx.x.x-pyodide-x.x.x`. Note that `release.yml` has its own copy of the matrix, which allows you to release only specific build versions.
+- **Non-main branches** — builds, runs tests, and uploads wheels as artifacts (90-day retention).
+- **`main` branch** — builds, runs tests, and publishes wheels as GitHub releases tagged `duckdb-vx.x.x-pyodide-x.x.x`.
 
-- The build takes ~20 minutes per combination since it compiles DuckDB from source with Emscripten.
-- Extension downloading does not work in the Pyodide runtime. Built-in extensions (json, parquet, icu, core_functions) are bundled.
+The build takes ~20 minutes per combination since it compiles DuckDB from source with Emscripten. Extension downloading does not work in the Pyodide runtime; built-in extensions (json, parquet, icu, core_functions) are bundled.
+
+## Tests
+
+### Smoke tests
+
+Verifies core functionality (platform detection, table CRUD, pandas integration). Must pass for the build to succeed.
+
+```bash
+uv run -m http.server
+```
+Now open http://localhost:8000/test-smoke.html.
+
+`wasm-dist/` must contain the built wheel.
+
+### Official test suite
+
+Runs ~180 test files from [duckdb/duckdb-python](https://github.com/duckdb/duckdb-python) `tests/fast/` via pytest inside Pyodide. Results are informational only and do not block the build.
+
+```bash
+uv run -m http.server
+```
+Now open http://localhost:8000/test-official.html.
+
+`wasm-dist/` must contain the built wheel.
+
+`test-official.html`: **2418 passed, 269 skipped, 4 xfailed, 3 xpassed**.
+
+Tests that are excluded from the run (incompatible with Pyodide):
+
+| Category | Reason |
+|----------|--------|
+| Threading (`test_6584`, `test_parallel`) | `can't start new thread` — no threading in Pyodide |
+| ADBC (`test_adbc`) | ADBC driver not available in wasm |
+| Spark (`test_spark`) | PySpark not available in Pyodide |
+| SQLite scanner (`test_sqlite_scanner`) | Native SQLite extension not loadable in wasm |
+| fsspec / httpfs (`test_fsspec`, `test_read_csv_httpfs`) | No filesystem/network access in Pyodide |
+| Subprocess (`test_startup`, `test_connection_interruption`) | `emscripten does not support processes` |
+| PyTorch / TensorFlow (`test_torch`, `test_tf`) | Not available in Pyodide |
+| psutil (`test_query_profiler`) | Not available in Pyodide |
+| Incompatible pytest API (`test_json_logging`) | Uses `pytest.raises(check=...)` added in pytest 8.4; Pyodide ships an older version |
+| Windows-only (`test_windows_path`) | N/A in wasm |
+
+### Updating tests
+
+The test files in [`tests/`](tests/) are copied from [duckdb/duckdb-python](https://github.com/duckdb/duckdb-python). To update them, copy the `tests/conftest.py` and `tests/fast/` directory from the matching duckdb-python tag. Tests that are incompatible with Pyodide (threading, filesystem, ADBC, Spark, fsspec, pytorch, tensorflow) are excluded in the `TEST_FILES` list in `test-official.html`.
 
 ## How it works
 
 The [build workflow](.github/workflows/build.yml) clones [duckdb/duckdb-python](https://github.com/duckdb/duckdb-python) with its duckdb submodule, applies a few patches, then runs `pyodide build --exports=whole_archive`.
 
-Four issues had to be worked around since the upstream build workflow was abandoned:
+## Fixes
 
 1. **Missing cross-build env URL** — the new `duckdb-python` repo is missing the pyodide xbuildenv URL that was added to the old repo via [duckdb/duckdb#18183](https://github.com/duckdb/duckdb/pull/18183) but never carried over. Passed via the `DEFAULT_CROSS_BUILD_ENV_URL` environment variable at build time.
 
@@ -39,3 +83,7 @@ Four issues had to be worked around since the upstream build workflow was abando
 4. **`CMakeLists.txt` linker flag incompatibility** — the `elseif(UNIX AND NOT APPLE)` branch passes `--export-dynamic-symbol` to the linker, which is a GNU ld flag unknown to `wasm-ld`. Since Emscripten sets `UNIX=1`, this branch fires. Patched via [`scripts/patch_cmake.py`](scripts/patch_cmake.py) to add an `elseif(EMSCRIPTEN)` no-op guard before it.
 
 5. **Dirty working tree breaks versioning** — patching `CMakeLists.txt` marks tracked files as modified, so `setuptools_scm` sees `distance=0, dirty=True` and falls through to `_bump_dev_version`, which rejects a distance of 0. Fixed by setting `OVERRIDE_GIT_DESCRIBE` to the git tag (e.g. `v1.4.4`), which duckdb's own version scheme uses to bypass `setuptools_scm` detection entirely. Only exact version tags are supported as `duckdb_version`; branch names like `main` will not produce a valid version.
+
+## Credits
+
+This repo was developed with [Claude Code](https://claude.ai/claude-code) (claude-sonnet-4-6).
