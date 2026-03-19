@@ -85,6 +85,7 @@
       "api/test_native_tz.py",
       "api/test_read_csv.py",
       "api/test_relation_to_view.py",
+      "api/test_sql_params_performance.py",
       "api/test_streaming_result.py",
       "api/test_to_csv.py",
       "api/test_to_parquet.py",
@@ -105,6 +106,7 @@
       "arrow/test_arrow_case_sensitive.py",
       "arrow/test_arrow_decimal256.py",
       "arrow/test_arrow_decimal_32_64.py",
+      "arrow/test_arrow_deprecation.py",
       "arrow/test_arrow_extensions.py",
       "arrow/test_arrow_fetch.py",
       "arrow/test_arrow_fetch_recordbatch.py",
@@ -134,6 +136,7 @@
       "arrow/test_multiple_reads.py",
       "arrow/test_nested_arrow.py",
       "arrow/test_polars.py",
+      "arrow/test_polars_filter_pushdown.py",
       "arrow/test_progress.py",
       "arrow/test_projection_pushdown.py",
       "arrow/test_time.py",
@@ -209,6 +212,7 @@
       "types/test_numeric.py",
       "types/test_numpy.py",
       "types/test_object_int.py",
+      "types/test_time_ns.py",
       "types/test_time_tz.py",
       "types/test_unsigned.py",
       // udf/
@@ -218,6 +222,7 @@
       "udf/test_scalar_arrow.py",
       "udf/test_scalar_native.py",
       "udf/test_transactionality.py",
+      "udf/test_udf_refcount_leak.py",
       // top-level
       "test_all_types.py",
       "test_ambiguous_prepare.py",
@@ -225,6 +230,7 @@
       "test_context_manager.py",
       "test_duckdb_api.py",
       "test_expression.py",
+      "test_expression_implicit_conversion.py",
       "test_get_table_names.py",
       "test_import_export.py",
       "test_insert.py",
@@ -236,6 +242,7 @@
       "test_parameter_list.py",
       "test_parquet.py",
       "test_relation.py",
+      "test_relation_dependency_leak.py",
       "test_replacement_scan.py",
       "test_result.py",
       "test_runtime_error.py",
@@ -243,10 +250,12 @@
       "test_string_annotation.py",
       "test_transaction.py",
       "test_type.py",
+      "test_type_conversion.py",
       "test_type_explicit.py",
       "test_unicode.py",
       "test_union.py",
       "test_value.py",
+      "test_variant.py",
       "test_version.py",
     ];
 
@@ -282,9 +291,9 @@
       log('duckdb wheel installed.', 'ok');
 
       // ── 3. Install test dependencies ─────────────────────────────────────
-      setStatus('Installing pytest, numpy, pandas, pyarrow, packaging…');
+      setStatus('Installing pytest, numpy, pandas, pyarrow, packaging, typing_extensions…');
       log('Installing test dependencies…', 'info');
-      await pyodide.loadPackage(['pytest', 'numpy', 'pandas', 'pyarrow', 'packaging']);
+      await pyodide.loadPackage(['pytest', 'numpy', 'pandas', 'pyarrow', 'packaging', 'typing_extensions']);
       log('Test dependencies installed.', 'ok');
 
       // ── 4. Set up virtual filesystem ─────────────────────────────────────
