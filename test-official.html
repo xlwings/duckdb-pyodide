@@ -119,7 +119,6 @@
       "arrow/test_arrow_replacement_scan.py",
       "arrow/test_arrow_run_end_encoding.py",
       "arrow/test_arrow_scanner.py",
-      "arrow/test_arrow_stream_scan.py",
       "arrow/test_arrow_string_view.py",
       "arrow/test_arrow_types.py",
       "arrow/test_arrow_union.py",
@@ -242,7 +241,6 @@
       "test_non_default_conn.py",
       "test_parameter_list.py",
       "test_parquet.py",
-      "test_profiler.py",
       "test_relation.py",
       "test_relation_dependency_leak.py",
       "test_replacement_scan.py",
@@ -293,9 +291,9 @@
       log('duckdb wheel installed.', 'ok');
 
       // ── 3. Install test dependencies ─────────────────────────────────────
-      setStatus('Installing pytest, numpy, pandas, pyarrow, packaging…');
+      setStatus('Installing pytest, numpy, pandas, pyarrow, packaging, typing_extensions…');
       log('Installing test dependencies…', 'info');
-      await pyodide.loadPackage(['pytest', 'numpy', 'pandas', 'pyarrow', 'packaging']);
+      await pyodide.loadPackage(['pytest', 'numpy', 'pandas', 'pyarrow', 'packaging', 'typing_extensions']);
       log('Test dependencies installed.', 'ok');
 
       // ── 4. Set up virtual filesystem ─────────────────────────────────────

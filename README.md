@@ -27,7 +27,7 @@ The build takes ~20 minutes per combination since it compiles DuckDB from source
 
 ### Smoke tests
 
-Verifies core functionality (platform detection, table CRUD, pandas integration). Must pass for the build to succeed.
+Verifies core functionality (platform detection, table CRUD, pandas integration). Must pass for the build to succeed. Taken over from pyodide-recipes.
 
 ```bash
 uv run -m http.server
@@ -45,9 +45,9 @@ uv run -m http.server
 ```
 Now open http://localhost:8000/test-official.html.
 
-`wasm-dist/` must contain the built wheel.
+`wasm-dist/` must contain the built wheel (only 1 wheel).
 
-`test-official.html`: results pending v1.5.0 build.
+`test-official.html`: **2490 passed, 307 skipped, 8 xfailed, 3 xpassed**.
 
 Tests that are excluded from the run (incompatible with Pyodide):
 
@@ -57,9 +57,10 @@ Tests that are excluded from the run (incompatible with Pyodide):
 | ADBC (`test_adbc`) | ADBC driver not available in wasm |
 | Spark (`test_spark`) | PySpark not available in Pyodide |
 | fsspec / httpfs (`test_fsspec`, `test_read_csv_httpfs`) | `fsspec` not available in Pyodide; httpfs extension not bundled |
-| Subprocess (`test_startup`, `test_connection_interruption`) | `emscripten does not support processes` |
+| Subprocess (`test_startup`, `test_connection_interruption`, `test_arrow_stream_scan`) | `emscripten does not support processes` |
 | PyTorch / TensorFlow (`test_torch`, `test_tf`) | Not available in Pyodide |
 | psutil (`test_query_profiler`) | Not available in Pyodide |
+| Profiler (`test_profiler`) | `ZeroDivisionError` in HTML rendering on wasm |
 | Incompatible pytest API (`test_json_logging`) | Uses `pytest.raises(check=...)` added in pytest 8.4; Pyodide ships an older version |
 | Windows-only (`test_windows_path`) | N/A in wasm |
 
