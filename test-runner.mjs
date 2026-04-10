@@ -15,13 +15,14 @@ const strict = rawArgs.includes('--strict');
 const pyodideFlag = rawArgs.find(a => a.startsWith('--pyodide-version='));
 const pyodideVersion = pyodideFlag ? pyodideFlag.split('=')[1] : null;
 const args = rawArgs.filter(a => a !== '--strict' && !a.startsWith('--pyodide-version='));
-const htmlFile = resolve(args[0]);
-const wheelDir = resolve(args[1] ?? 'wasm-dist');
 
-if (!process.argv[2]) {
-  console.error('Usage: node test-runner.mjs [--strict] <test-file.html> [wheel-dir]');
+if (!args[0]) {
+  console.error('Usage: node test-runner.mjs [--strict] [--pyodide-version=X.Y.Z] <test-file.html> [wheel-dir]');
   process.exit(1);
 }
+
+const htmlFile = resolve(args[0]);
+const wheelDir = resolve(args[1] ?? 'wasm-dist');
 
 // The HTML file and wheel dir may be in different locations (e.g. in CI the HTML
 // lives in duckdb-pyodide/ while the wheel lives in duckdb-python/dist/ at the repo root).
@@ -69,7 +70,7 @@ const server = createServer(async (req, res) => {
 
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const { port } = server.address();
-const qs = pyodideVersion ? `?pyodide=${pyodideVersion}` : '';
+const qs = pyodideVersion ? `?pyodide=${encodeURIComponent(pyodideVersion)}` : '';
 const pageUrl = `http://127.0.0.1:${port}/${basename(htmlFile)}${qs}`;
 
 console.log(`Serving repo at http://127.0.0.1:${port}`);
