@@ -17,7 +17,7 @@ jobs:
           # - duckdb_version: 'v1.5.0'
           #   pyodide_version: '0.29.3'
           #   python_version: '3.13'
-          - duckdb_version: 'v1.5.0'
+          - duckdb_version: 'v1.5.1'
             pyodide_version: '314.0.0a1'
             python_version: '3.14'
 
